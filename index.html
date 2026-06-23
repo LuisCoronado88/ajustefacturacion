@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sustentación Técnica: AjustePredictor — Arquitectura ML</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #2d3748;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f7fafc;
+        }
+        .container {
+            max-width: 950px;
+            margin: 40px auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            background-color: #1a365d;
+            color: #ffffff;
+            padding: 35px;
+            margin: -40px -40px 30px -40px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border-bottom: 4px solid #2b6cb0;
+        }
+        h1 { margin: 0; font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .subtitle { color: #90cdf4; margin-top: 5px; font-size: 16px; }
+        h2 { font-size: 20px; color: #2b6cb0; margin-top: 35px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+        h3 { font-size: 16px; color: #2d3748; margin-top: 20px; font-weight: bold; }
+        p { text-align: justify; color: #4a5568; }
+        ul, ol { color: #4a5568; padding-left: 20px; }
+        li { margin-bottom: 6px; text-align: justify; }
+        .alert-box {
+            background-color: #fffaf0;
+            border-left: 4px solid #dd6b20;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-box h4 { margin: 0 0 5px 0; color: #dd6b20; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background-color: #2b6cb0; color: #ffffff; padding: 12px 10px; text-align: left; font-size: 14px; }
+        td { padding: 10px; border: 1px solid #e2e8f0; font-size: 14px; }
+        tr:nth-child(even) { background-color: #f7fafc; }
+        .badge { background-color: #ebf8ff; color: #2b6cb0; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-success { background-color: #c6f6d5; color: #22543d; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        code { font-family: monospace; background-color: #edf2f7; padding: 2px 5px; border-radius: 3px; color: #805ad5; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>AjustePredictor</h1>
+        <div class="subtitle">Sustentación de Arquitectura de Machine Learning para Modelado de Datos Desbalanceados</div>
+    </div>
+
+    <h2>1. Contexto del Problema y Objetivos Estratégicos</h2>
+    <p>
+        En el sector de servicios públicos domiciliarios (agua y alcantarillado), las desviaciones físicas de consumo y las inconsistencias comerciales generan reclamaciones masivas por parte de los usuarios. Cuando estas disputas son procedentes, la compañía aplica un <strong>Ajuste de Facturación</strong>. Operar de manera reactiva ante este fenómeno afecta directamente el flujo de caja e inunda a los analistas de control de pérdidas con auditorías manuales.
+    </p>
+    <h3>Objetivos del Proyecto:</h3>
+    <ul>
+        <li><strong>Detección Temprana:</strong> Identificar en la etapa de precrítica comercial qué contratos presentan alta probabilidad de requerir un ajuste el próximo mes.</li>
+        <li><strong>Eficiencia Operativa:</strong> Filtrar quirúrgicamente el universo de usuarios para asignar inspecciones en terreno u órdenes de revisión solo a casos con anomalías reales comprobadas.</li>
+    </ul>
+
+    <h2>2. Análisis Exploratorio de Datos (EDA) e Ingeniería de Características</h2>
+    <p>
+        El modelo fue entrenado y validado utilizando un volumen histórico real de <strong>659,856 registros comerciales</strong>.
+    </p>
+    
+    <div class="alert-box">
+        <h4>🚨 Diagnóstico de Desbalanceo Extremo</h4>
+        <p>La variable objetivo es <code>VALOR_AJUSTE_PERIODO</code> ($1$ = Requiere Ajuste; $0$ = Cuenta Estable). El EDA reveló la siguiente distribución:</p>
+        <ul>
+            <li><strong>Clase 0 (Sin Ajuste):</strong> 651,395 registros (<strong>98.72%</strong> del total).</li>
+            <li><strong>Clase 1 (Con Ajuste):</strong> 8,461 registros (<strong>1.28%</strong> del total).</li>
+        </ul>
+        <p>Al ser un problema de "aguja en un pajar", las métricas tradicionales de exactitud global inducirían a un error grave en la toma de decisiones.</p>
+    </div>
+
+    <h3>Ingeniería de Características Senior (Feature Engineering):</h3>
+    <p>Para dotar a los modelos de contexto de negocio, se estructuraron tres variables de contraste matemático a partir del diccionario comercial:</p>
+    <ul>
+        <li><code>DESVIACION_M3</code>: Representa la diferencia neta (<code>M3_PERIODO - M3_PROMEDIO</code>). Expone picos atípicos de consumo de agua de forma individualizada.</li>
+        <li><code>DESVIACION_FACTURACION</code>: Captura variaciones abruptas de costos financieros (<code>FACTURACION_PERIODO - FACTURACION_PROMEDIO</code>).</li>
+        <li><code>ALERTA_ALTO_CONSUMO</code>: Indicador binario que se activa si el consumo físico actual supera 1.5 veces el promedio de los últimos 6 meses.</li>
+    </ul>
+
+    <h2>3. Arquitectura de Métricas Avanzadas</h2>
+    <p>
+        El marco de evaluación descartó el <code>Accuracy</code> general. El éxito del negocio radica en optimizar tres métricas orientadas estrictamente a la **Clase 1 (Ajustes)**:
+    </p>
+    <ul>
+        <li><strong>Precision:</strong> Mide la confianza de la alerta. Un porcentaje alto asegura que cuando el sistema marca una cuenta, el auditor no pierda tiempo en una falsa alarma.</li>
+        <li><strong>Recall (Sensibilidad):</strong> Mide la capacidad de captura. Asegura cuántos ajustes verdaderos del pajar logramos rescatar.</li>
+        <li><strong>F1-Score:</strong> Balance de ambas. Es la métrica reina utilizada para dictaminar el modelo campeón.</li>
+    </ul>
+
+    <h2>4. Modelos Entrenados y Validación Cruzada</h2>
+    <p>
+        Para asegurar la reproducibilidad y blindar el sistema contra el sobreajuste (<em>overfitting</em>), implementamos una <strong>Validación Cruzada Estratificada de 5 Pliegues (Stratified 5-Fold Cross-Validation)</strong>. Se evaluaron tres familias de algoritmos alimentados mediante un pipeline robusto:
+    </p>
+    <ol>
+        <li><strong>Regresión Logística (Balanced):</strong> Configurada para ponderar fuertemente la clase minoritaria mediante penalizaciones de pesos.</li>
+        <li><strong>Random Forest Classifier (Balanced):</strong> Ensamble no lineal estructurado para penalizar desviaciones complejas.</li>
+        <li><strong>Gradient Boosting Classifier:</strong> Arquitectura secuencial de optimización por gradiente.</li>
+    </ol>
+
+    <h2>5. Selección del Mejor Modelo (Resultados Reales de Consola)</h2>
+    <p>
+        Tras el procesamiento multivariable de los 659,856 registros, la tabla de rendimiento consolidada arrojó las siguientes métricas exactas:
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Modelo de Clasificación</th>
+                <th>F1-Score (Métrica Selección)</th>
+                <th>Recall (Sensibilidad)</th>
+                <th>Precision (Confianza)</th>
+                <th>Accuracy Global</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Gradient Boosting 🏆</strong></td>
+                <td><span class="badge">43.84%</span></td>
+                <td>29.19%</td>
+                <td class="badge-success">88.07%</td>
+                <td>99.04%</td>
+            </tr>
+            <tr>
+                <td>Random Forest (Balanced)</td>
+                <td>12.67%</td>
+                <td>58.50%</td>
+                <td>7.10%</td>
+                <td>89.66%</td>
+            </tr>
+            <tr>
+                <td>Regresión Logística (Balanced)</td>
+                <td>9.48%</td>
+                <td>61.93%</td>
+                <td>5.13%</td>
+                <td>84.84%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>
+        <strong>Veredicto Técnico y Argumentación Senior:</strong> El modelo ganador absoluto para producción es <strong>Gradient Boosting</strong>. Aunque los modelos balanceados incrementan el Recall, colapsan la operación destruyendo la precisión (caen a ~5%). En un entorno corporativo de servicios públicos, un modelo con una <strong>Precision del 88.07%</strong> es un éxito rotundo: significa que el algoritmo es quirúrgico. Genera pocas alertas, pero con la certeza casi absoluta de que el caso requiere intervención inmediata, optimizando los recursos humanos de control de pérdidas.
+    </p>
+
+    <h2>6. Empaquetamiento de la Solución</h2>
+    <p>
+        El software fue modularizado bajo principios de arquitectura limpia:
+    </p>
+    <ul>
+        <li><code>data/data_loader.py</code>: Ingesta con parseo automático de comas decimales e ingeniería de variables.</li>
+        <li><code>train_models.py</code>: Pipeline de validación cruzada multihilo automatizado.</li>
+        <li><code>app.py</code>: Interfaz analítica e interactiva en Dash y Plotly que consume el modelo final para simulaciones en tiempo real por parte del usuario.</li>
+    </ul>
+</div>
+
+</body>
+</html>
